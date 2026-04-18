@@ -4,7 +4,6 @@
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 import json
 import time
 import requests
@@ -52,7 +51,7 @@ st.set_page_config(
     menu_items={}
 )
 
-# 全局 CSS：统一视觉风格，保留侧栏恢复入口
+# 全局 CSS：统一视觉风格（中文界面）
 st.markdown("""
 <style>
 /* ── 主题变量 ── */
@@ -69,6 +68,8 @@ st.markdown("""
 
 /* ── 隐藏多余默认 UI ── */
 #MainMenu                              { visibility: hidden !important; }
+header[data-testid="stHeader"]         { display: none !important; }
+[data-testid="stToolbar"]              { display: none !important; }
 footer                                 { visibility: hidden !important; }
 [data-testid="stDecoration"]           { display: none !important; }
 .viewerBadge_container__r5tak         { display: none !important; }
@@ -91,20 +92,6 @@ body, .stApp {
 [data-testid="stSidebar"] > div:first-child {
     background: linear-gradient(180deg,#f7fbff,#f0f6fb) !important;
     border-right: 1px solid var(--line) !important;
-}
-
-/* 左侧栏收起后，保证展开按钮始终可见 */
-[data-testid="collapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: 9999 !important;
-}
-[data-testid="collapsedControl"] button {
-    border: 1px solid #b8c8dc !important;
-    border-radius: 10px !important;
-    background: #ffffff !important;
-    box-shadow: 0 3px 10px rgba(15,60,110,.12) !important;
 }
 
 /* ── 字体 ── */
@@ -200,29 +187,6 @@ def init_state():
 
 def normalize_mold_code(raw: str) -> str:
     return (raw or "").strip().upper()
-
-
-def render_sidebar_recover_hint():
-    c1, c2 = st.columns([1.5, 4.5])
-    with c1:
-        clicked = st.button("☰ 显示左栏", key="btn_show_sidebar", use_container_width=True)
-    with c2:
-        st.caption("左侧菜单被收起时，点左边按钮可尝试重新展开。")
-    if clicked:
-        components.html("""
-<script>
-const root = window.parent.document;
-const selectors = [
-  '[data-testid="collapsedControl"] button',
-  '[data-testid="stSidebarCollapsedControl"] button',
-  'button[aria-label="Open sidebar"]'
-];
-for (const s of selectors) {
-  const btn = root.querySelector(s);
-  if (btn) { btn.click(); break; }
-}
-</script>
-""", height=0)
 
 
 # ════════════════════════════════════════════════
@@ -587,46 +551,7 @@ def render_sidebar():
                 st.rerun()
 
         st.divider()
-
-        with st.expander("🔧 模具管理"):
-            with st.form("form_add_mold", clear_on_submit=True):
-                ma,mb = st.columns([3,1])
-                with ma: m_name  = st.text_input("模具号*", placeholder="如 1507#", label_visibility="collapsed")
-                with mb: add_m   = st.form_submit_button("添加", use_container_width=True)
-                mc,md = st.columns(2)
-                with mc: m_part  = st.text_input("零件号", placeholder="零件号", label_visibility="collapsed")
-                with md: m_ver   = st.text_input("版本",  placeholder="版本",  label_visibility="collapsed")
-                m_pname = st.text_input("产品名称（选填）", placeholder="如 刹车卡钳支架", label_visibility="collapsed")
-            if add_m:
-                mn = normalize_mold_code(m_name)
-                existing = {normalize_mold_code(m.get("id") or m.get("name")) for m in st.session_state.mold_list}
-                if not mn: st.error("请输入模具号")
-                elif mn in existing: st.error("该模具号已存在")
-                else:
-                    st.session_state.mold_list.append({"id":mn,"name":mn,"partNo":m_part.strip(),
-                        "partVer":m_ver.strip(),"productName":m_pname.strip()})
-                    st.success(f"已添加模具：{mn}")
-                    st.rerun()
-            for m in st.session_state.mold_list:
-                mc1,mc2 = st.columns([3,1])
-                mc1.markdown(f"**{m['name']}** <small style='color:#888'>{m.get('partNo','')}</small>",
-                             unsafe_allow_html=True)
-                if mc2.button("删除", key=f"dlm_{m['id']}", use_container_width=True):
-                    st.session_state.mold_list = [x for x in st.session_state.mold_list if x["id"]!=m["id"]]
-                    st.rerun()
-
-        with st.expander("🏷 不良类型管理"):
-            with st.form("form_add_type", clear_on_submit=True):
-                t1,t2 = st.columns([3,1])
-                with t1: new_type = st.text_input("新类型", placeholder="输入新类型…", label_visibility="collapsed")
-                with t2: add_t    = st.form_submit_button("添加", use_container_width=True)
-            if add_t and new_type.strip() and new_type.strip() not in st.session_state.defect_types:
-                st.session_state.defect_types.append(new_type.strip()); st.rerun()
-            for i,t in enumerate(st.session_state.defect_types):
-                tc1,tc2 = st.columns([3,1])
-                tc1.write(t)
-                if tc2.button("删除", key=f"dlt_{i}", use_container_width=True):
-                    st.session_state.defect_types.pop(i); st.rerun()
+        st.caption("基础资料管理（模具/不良类型）已移到右侧「不良台账」页面。")
 
         with st.expander("☁ Supabase 连接测试"):
             if st.button("🔌 测试连接", use_container_width=True):
@@ -635,9 +560,98 @@ def render_sidebar():
 
 
 # ════════════════════════════════════════════════
+# 主区：基础资料管理（横向）
+# ════════════════════════════════════════════════
+def render_master_data_panel():
+    st.markdown("##### ⚙ 基础资料管理")
+    lc, rc = st.columns(2)
+
+    with lc:
+        st.markdown("###### 🔧 模具管理")
+        with st.form("main_form_add_mold", clear_on_submit=True):
+            m1,m2,m3,m4,m5 = st.columns([2.2,1.6,1.2,2.2,0.9])
+            with m1:
+                m_name = st.text_input("模具号*", placeholder="如 1507#")
+            with m2:
+                m_part = st.text_input("零件号", placeholder="零件号")
+            with m3:
+                m_ver = st.text_input("版本", placeholder="版本")
+            with m4:
+                m_pname = st.text_input("产品名称", placeholder="如 刹车卡钳支架")
+            with m5:
+                add_m = st.form_submit_button("添加", use_container_width=True)
+
+        if add_m:
+            mn = normalize_mold_code(m_name)
+            existing = {normalize_mold_code(m.get("id") or m.get("name")) for m in st.session_state.mold_list}
+            if not mn:
+                st.error("请输入模具号")
+            elif mn in existing:
+                st.error("该模具号已存在")
+            else:
+                st.session_state.mold_list.append({
+                    "id":mn, "name":mn, "partNo":m_part.strip(),
+                    "partVer":m_ver.strip(), "productName":m_pname.strip()
+                })
+                st.success(f"已添加模具：{mn}")
+                st.rerun()
+
+        if st.session_state.mold_list:
+            h1,h2,h3,h4,h5 = st.columns([1.6,1.6,1.0,2.0,0.9])
+            h1.markdown("**模具号**")
+            h2.markdown("**零件号**")
+            h3.markdown("**版本**")
+            h4.markdown("**产品名称**")
+            h5.markdown("**操作**")
+            for i, m in enumerate(st.session_state.mold_list):
+                c1,c2,c3,c4,c5 = st.columns([1.6,1.6,1.0,2.0,0.9])
+                c1.write(m["name"])
+                c2.write(m.get("partNo","") or "-")
+                c3.write(m.get("partVer","") or "-")
+                c4.write(m.get("productName","") or "-")
+                if c5.button("删除", key=f"main_dlm_{m['id']}_{i}", use_container_width=True):
+                    st.session_state.mold_list = [x for x in st.session_state.mold_list if x["id"] != m["id"]]
+                    st.rerun()
+
+    with rc:
+        st.markdown("###### 🏷 不良类型管理")
+        with st.form("main_form_add_type", clear_on_submit=True):
+            t1,t2 = st.columns([5,1])
+            with t1:
+                new_type = st.text_input("新增不良类型", placeholder="如：夹渣")
+            with t2:
+                add_t = st.form_submit_button("添加", use_container_width=True)
+
+        if add_t:
+            nt = new_type.strip()
+            if not nt:
+                st.error("请输入不良类型")
+            elif nt in st.session_state.defect_types:
+                st.error("该类型已存在")
+            else:
+                st.session_state.defect_types.append(nt)
+                st.success(f"已添加类型：{nt}")
+                st.rerun()
+
+        if st.session_state.defect_types:
+            h1,h2 = st.columns([5,1])
+            h1.markdown("**不良类型**")
+            h2.markdown("**操作**")
+            for i, t in enumerate(st.session_state.defect_types):
+                tc1,tc2 = st.columns([5,1])
+                tc1.write(t)
+                if tc2.button("删除", key=f"main_dlt_{i}", use_container_width=True):
+                    st.session_state.defect_types.pop(i)
+                    st.rerun()
+
+
+# ════════════════════════════════════════════════
 # 台账 Tab
 # ════════════════════════════════════════════════
 def render_records_tab():
+    render_master_data_panel()
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
     fc = st.columns([2,1.5,1.5,1.5,1.5,1])
     mold_opts = ["全部模具"] + [m["name"] for m in st.session_state.mold_list]
     with fc[0]: f_mold  = st.selectbox("模具", mold_opts, label_visibility="collapsed", key="f_mold")
@@ -907,7 +921,6 @@ def main():
         with st.spinner("正在连接 Supabase 并同步数据…"):
             sync_from_supabase()
 
-    render_sidebar_recover_hint()
     render_sidebar()
 
     st.markdown("""
