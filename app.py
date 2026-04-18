@@ -4,6 +4,7 @@
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import json
 import time
 import requests
@@ -51,51 +52,127 @@ st.set_page_config(
     menu_items={}
 )
 
-# 全局 CSS：隐藏水印/顶栏/Fork，统一中文排版
+# 全局 CSS：统一视觉风格，保留侧栏恢复入口
 st.markdown("""
 <style>
-/* ── 隐藏 Streamlit 默认 UI ── */
+/* ── 主题变量 ── */
+:root{
+    --bg-top:#f5f8fc;
+    --bg-bottom:#eef3f9;
+    --panel:#ffffff;
+    --line:#d7e0ec;
+    --text:#1f2a3d;
+    --muted:#6d7f99;
+    --brand:#0f6b9f;
+    --brand-2:#0f8b7f;
+}
+
+/* ── 隐藏多余默认 UI ── */
 #MainMenu                              { visibility: hidden !important; }
-header[data-testid="stHeader"]         { display: none !important; }
 footer                                 { visibility: hidden !important; }
 [data-testid="stDecoration"]           { display: none !important; }
-[data-testid="stToolbar"]              { display: none !important; }
 .viewerBadge_container__r5tak         { display: none !important; }
 a[href*="streamlit.io"]                { display: none !important; }
 
 /* ── 布局 ── */
-.block-container { padding-top:1rem !important; padding-bottom:1rem !important; }
-[data-testid="stSidebar"] { min-width:270px !important; max-width:285px !important; }
-[data-testid="stSidebar"] > div:first-child { background:#f2f5f9; }
+body, .stApp {
+    background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%) !important;
+    color: var(--text) !important;
+}
+.block-container {
+    padding-top: 1.1rem !important;
+    padding-bottom: 1.25rem !important;
+    max-width: 1420px !important;
+}
+[data-testid="stSidebar"] {
+    min-width: 300px !important;
+    max-width: 320px !important;
+}
+[data-testid="stSidebar"] > div:first-child {
+    background: linear-gradient(180deg,#f7fbff,#f0f6fb) !important;
+    border-right: 1px solid var(--line) !important;
+}
+
+/* 左侧栏收起后，保证展开按钮始终可见 */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 9999 !important;
+}
+[data-testid="collapsedControl"] button {
+    border: 1px solid #b8c8dc !important;
+    border-radius: 10px !important;
+    background: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(15,60,110,.12) !important;
+}
 
 /* ── 字体 ── */
 html,body,[class*="css"] { font-family:"Noto Sans SC","Microsoft YaHei",sans-serif !important; }
 
 /* ── 指标卡 ── */
 [data-testid="metric-container"] {
-    background:#fff; border:1px solid #d4dae6;
-    border-radius:10px; padding:10px 16px;
-    box-shadow:0 1px 4px rgba(0,0,0,.07);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 14px rgba(25, 61, 107, .07);
 }
-[data-testid="stMetricLabel"] { font-size:12px !important; color:#7f8fa8 !important; }
+[data-testid="stMetricLabel"] { font-size:12px !important; color:var(--muted) !important; }
 [data-testid="stMetricValue"] { font-size:28px !important; font-weight:900 !important; }
 
 /* ── Tab ── */
-[data-testid="stTabs"] button { font-size:13px !important; font-weight:600 !important; }
+[data-testid="stTabs"] [role="tab"]{
+    border-radius: 10px !important;
+    border: 1px solid #d9e3ef !important;
+    background: #fff !important;
+    margin-right: 6px !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+[data-testid="stTabs"] [aria-selected="true"]{
+    border-color: #8bb9db !important;
+    color: #0d4670 !important;
+    box-shadow: 0 1px 8px rgba(42,90,137,.10) !important;
+}
 
 /* ── 按钮/输入框 ── */
-.stButton>button { border-radius:7px; font-size:12px; font-weight:600; }
-.stTextInput input,.stTextArea textarea { font-size:12px !important; border-radius:7px !important; }
+.stButton>button {
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 1px solid #d2ddeb;
+    min-height: 40px;
+}
+.stButton>button[kind="primary"]{
+    background: linear-gradient(135deg, var(--brand), var(--brand-2)) !important;
+    color: #fff !important;
+    border: 0 !important;
+}
+.stTextInput input,.stTextArea textarea, .stSelectbox [data-baseweb="select"] > div {
+    font-size: 13px !important;
+    border-radius: 9px !important;
+}
 
 /* ── 表格 ── */
 .stDataFrame { font-size:12px; }
 
 /* ── 表单边框 ── */
 [data-testid="stForm"] {
-    border:1px solid #e0e6f0 !important;
-    border-radius:10px !important;
+    border:1px solid var(--line) !important;
+    border-radius:12px !important;
     padding:12px !important;
-    background:#fafbfc;
+    background: #f9fbfd;
+}
+
+/* 分割线和提示风格 */
+hr {
+    border-top: 1px solid #d6e1ee !important;
+}
+[data-testid="stAlert"]{
+    border-radius: 10px !important;
+    border: 1px solid #d6e1ee !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -119,6 +196,33 @@ def init_state():
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
+
+
+def normalize_mold_code(raw: str) -> str:
+    return (raw or "").strip().upper()
+
+
+def render_sidebar_recover_hint():
+    c1, c2 = st.columns([1.5, 4.5])
+    with c1:
+        clicked = st.button("☰ 显示左栏", key="btn_show_sidebar", use_container_width=True)
+    with c2:
+        st.caption("左侧菜单被收起时，点左边按钮可尝试重新展开。")
+    if clicked:
+        components.html("""
+<script>
+const root = window.parent.document;
+const selectors = [
+  '[data-testid="collapsedControl"] button',
+  '[data-testid="stSidebarCollapsedControl"] button',
+  'button[aria-label="Open sidebar"]'
+];
+for (const s of selectors) {
+  const btn = root.querySelector(s);
+  if (btn) { btn.click(); break; }
+}
+</script>
+""", height=0)
 
 
 # ════════════════════════════════════════════════
@@ -384,19 +488,16 @@ def render_sidebar():
 
         mold_names = [m["name"] for m in st.session_state.mold_list]
         mold_display = ["— 请选择模具 —"] + [
-            m["name"] + (f"  {m['partNo']}" if m.get("partNo") else "") +
-            (f"  {m['productName']}" if m.get("productName") else "")
+            f"{m['name']} ｜ 零件:{m.get('partNo') or '-'}"
             for m in st.session_state.mold_list
         ]
+        mold_map = {label: mold for label, mold in zip(mold_display[1:], st.session_state.mold_list)}
         mold_idx = 0
         if edit and edit.get("moldId") in mold_names:
             mold_idx = mold_names.index(edit["moldId"]) + 1
 
         sel_mold_str = st.selectbox("模具编号 *", mold_display, index=mold_idx, key="sb_mold")
-        mold_obj = None
-        if sel_mold_str != "— 请选择模具 —":
-            sel_name = sel_mold_str.split("  ")[0].strip()
-            mold_obj = next((m for m in st.session_state.mold_list if m["name"]==sel_name), None)
+        mold_obj = mold_map.get(sel_mold_str)
         if mold_obj:
             pn = mold_obj.get("partNo","") or "—"
             pv = mold_obj.get("partVer","") or "—"
@@ -497,12 +598,14 @@ def render_sidebar():
                 with md: m_ver   = st.text_input("版本",  placeholder="版本",  label_visibility="collapsed")
                 m_pname = st.text_input("产品名称（选填）", placeholder="如 刹车卡钳支架", label_visibility="collapsed")
             if add_m:
-                mn = m_name.strip().upper()
+                mn = normalize_mold_code(m_name)
+                existing = {normalize_mold_code(m.get("id") or m.get("name")) for m in st.session_state.mold_list}
                 if not mn: st.error("请输入模具号")
-                elif any(m["id"]==mn for m in st.session_state.mold_list): st.error("已存在")
+                elif mn in existing: st.error("该模具号已存在")
                 else:
                     st.session_state.mold_list.append({"id":mn,"name":mn,"partNo":m_part.strip(),
                         "partVer":m_ver.strip(),"productName":m_pname.strip()})
+                    st.success(f"已添加模具：{mn}")
                     st.rerun()
             for m in st.session_state.mold_list:
                 mc1,mc2 = st.columns([3,1])
@@ -804,12 +907,14 @@ def main():
         with st.spinner("正在连接 Supabase 并同步数据…"):
             sync_from_supabase()
 
+    render_sidebar_recover_hint()
     render_sidebar()
 
     st.markdown("""
-<div style="display:flex;align-items:center;margin-bottom:6px;
-  padding-bottom:8px;border-bottom:2px solid #e0e6f0;">
-  <h2 style="margin:0;font-size:22px;font-weight:900;color:#1e2a3b;">
+<div style="display:flex;align-items:center;margin-bottom:10px;
+  padding:10px 14px;border:1px solid #d5e1ee;border-radius:12px;
+  background:linear-gradient(135deg,#ffffff,#f3f8fd);">
+  <h2 style="margin:0;font-size:24px;font-weight:900;color:#183149;">
     🏭 外观不良智能管理系统
   </h2>
 </div>""", unsafe_allow_html=True)
